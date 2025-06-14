@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  zookeeper:
+    image: wurstmeister/zookeeper
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: wurstmeister/kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_ADVERTISED_HOST_NAME: kafka
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+    depends_on:
+      - zookeeper
+
+  redis:
+    image: redis
+    ports:
+      - "6379:6379"
+
+  fastapi:
+    build: ./backend
+    command: uvicorn app:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+
+  websocket:
+    build: ./websocket
+    command: node server.js
+    ports:
+      - "8080:8080"
+    depends_on:
+      - redis
+
+  producer:
+    build: ./backend
+    command: python producer.py
+    depends_on:
+      - kafka
+
+  consumer:
+    build: ./backend
+    command: python consumer.py
+    depends_on:
+      - kafka
+      - redis
+
+networks:
+  default:
+    name: lognet
